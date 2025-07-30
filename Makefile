@@ -3,8 +3,10 @@
 # Default target
 all: build
 
+check: lint test security staticcheck 
+
 # Build the application
-build:
+build: check
 	@echo "Building HTTP Request Reliability Tester..."
 	go build -o http-tester .
 
@@ -18,12 +20,10 @@ security:
 	@echo "Running security checks..."
 	gosec ./...
 	@echo "Running vulnerability check..."
-	@if [ -f "/Users/benvon/.asdf/installs/golang/1.24.4/bin/govulncheck" ]; then \
-		/Users/benvon/.asdf/installs/golang/1.24.4/bin/govulncheck ./...; \
+	@if [ -n "$(GOVULNCHECK_PATH)" ] && [ -f "$(GOVULNCHECK_PATH)" ]; then \
+		$(GOVULNCHECK_PATH) ./...; \
 	elif [ -f "$(shell go env GOROOT)/bin/govulncheck" ]; then \
 		$(shell go env GOROOT)/bin/govulncheck ./...; \
-	elif [ -f "$(shell go env GOPATH)/bin/govulncheck" ]; then \
-		$(shell go env GOPATH)/bin/govulncheck ./...; \
 	elif command -v govulncheck >/dev/null 2>&1; then \
 		govulncheck ./...; \
 	else \
@@ -33,27 +33,13 @@ security:
 # Run static analysis
 staticcheck:
 	@echo "Running static analysis..."
-	@if [ -f "/Users/benvon/.asdf/installs/golang/1.24.4/bin/staticcheck" ]; then \
-		/Users/benvon/.asdf/installs/golang/1.24.4/bin/staticcheck ./...; \
-	elif [ -f "$(shell go env GOROOT)/bin/staticcheck" ]; then \
+	@if [ -f "$(shell go env GOROOT)/bin/staticcheck" ]; then \
 		$(shell go env GOROOT)/bin/staticcheck ./...; \
-	elif [ -f "$(shell go env GOPATH)/bin/staticcheck" ]; then \
-		$(shell go env GOPATH)/bin/staticcheck ./...; \
 	elif command -v staticcheck >/dev/null 2>&1; then \
 		staticcheck ./...; \
 	else \
 		echo "staticcheck not found, skipping static analysis"; \
 	fi
-
-# Run all quality checks
-quality: test security staticcheck
-
-# Run tests with coverage
-coverage:
-	@echo "Running tests with coverage..."
-	go test -coverprofile=coverage.out ./...
-	go tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report generated: coverage.html"
 
 # Clean build artifacts
 clean:

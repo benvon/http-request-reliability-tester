@@ -211,8 +211,13 @@ func formatCSV(results *tester.TestResult) (string, error) {
 	if err := writer.Write([]string{"Total Errors", fmt.Sprintf("%d", results.TotalErrors)}); err != nil {
 		return "", fmt.Errorf("failed to write CSV: %w", err)
 	}
-	if err := writer.Write([]string{"Success Rate", fmt.Sprintf("%.2f%%",
-		float64(results.TotalRequests-results.TotalErrors)/float64(results.TotalRequests)*100)}); err != nil {
+	var successRate string
+	if results.TotalRequests == 0 {
+		successRate = "0.00%"
+	} else {
+		successRate = fmt.Sprintf("%.2f%%", float64(results.TotalRequests-results.TotalErrors)/float64(results.TotalRequests)*100)
+	}
+	if err := writer.Write([]string{"Success Rate", successRate}); err != nil {
 		return "", fmt.Errorf("failed to write CSV: %w", err)
 	}
 	if err := writer.Write([]string{"Duration", results.Duration.String()}); err != nil {

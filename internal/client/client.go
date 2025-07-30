@@ -152,7 +152,14 @@ func (c *Client) MakeRequest(ctx context.Context, endpoint string) *RequestResul
 		c.printDebugInfo(result)
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			// Log the close error but don't fail the request
+			if c.debug {
+				fmt.Printf("[DEBUG] Failed to close response body: %v\n", closeErr)
+			}
+		}
+	}()
 
 	result.StatusCode = resp.StatusCode
 	result.Duration = time.Since(start)
@@ -198,7 +205,14 @@ func (c *Client) performPreflight(ctx context.Context, endpoint string) *Request
 		result.Duration = time.Since(start)
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			// Log the close error but don't fail the request
+			if c.debug {
+				fmt.Printf("[DEBUG] Failed to close response body: %v\n", closeErr)
+			}
+		}
+	}()
 
 	result.StatusCode = resp.StatusCode
 	result.Duration = time.Since(start)

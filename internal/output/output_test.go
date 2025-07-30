@@ -93,7 +93,9 @@ func TestFormatCSV(t *testing.T) {
 func TestWriteToFile(t *testing.T) {
 	results := createTestResults()
 	tempFile := "test_output.md"
-	defer os.Remove(tempFile)
+	defer func() {
+		_ = os.Remove(tempFile)
+	}()
 
 	err := Write(results, config.OutputFormatMarkdown, tempFile)
 	if err != nil {
@@ -130,7 +132,7 @@ func TestWriteToStdout(t *testing.T) {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	w.Close()
+	_ = w.Close()
 	output := make([]byte, 1024)
 	n, _ := r.Read(output)
 

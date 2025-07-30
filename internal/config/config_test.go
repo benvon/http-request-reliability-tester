@@ -128,8 +128,10 @@ func TestEnvironmentVariablePrecedence(t *testing.T) {
 	t.Skip("Skipping due to flag redefinition issues in test environment")
 
 	// Set environment variable
-	os.Setenv("HTTP_TESTER_ENDPOINTS", "https://test1.com,https://test2.com")
-	defer os.Unsetenv("HTTP_TESTER_ENDPOINTS")
+	_ = os.Setenv("HTTP_TESTER_ENDPOINTS", "https://test1.com,https://test2.com")
+	defer func() {
+		_ = os.Unsetenv("HTTP_TESTER_ENDPOINTS")
+	}()
 
 	config, err := Load()
 	if err != nil {

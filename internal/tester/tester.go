@@ -176,8 +176,9 @@ func (t *Tester) processResult(result *client.RequestResult) {
 	// Update endpoint-specific results
 	endpointResult := t.results.EndpointResults[result.Endpoint]
 	endpointResult.TotalRequests++
-	endpointResult.AverageDuration = (endpointResult.AverageDuration*time.Duration(endpointResult.TotalRequests-1) + result.Duration) / time.Duration(endpointResult.TotalRequests)
-
+	if endpointResult.TotalRequests > 0 {
+		endpointResult.AverageDuration = (endpointResult.AverageDuration*time.Duration(endpointResult.TotalRequests-1) + result.Duration) / time.Duration(endpointResult.TotalRequests)
+	}
 	if result.Error != nil {
 		endpointResult.TotalErrors++
 		endpointResult.ErrorBreakdown[result.ErrorType]++
