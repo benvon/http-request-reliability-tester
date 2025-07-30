@@ -22,12 +22,12 @@ jobs:
         run: echo "version=$(grep '^go ' go.mod | cut -d' ' -f2)" >> $GITHUB_OUTPUT
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ steps.go-version.outputs.version }}
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: latest

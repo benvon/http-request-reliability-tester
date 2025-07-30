@@ -17,7 +17,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -28,9 +28,9 @@ jobs:
       run: go test -v -race -coverprofile=coverage.out ./...
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
-        file: ./coverage.out
+        files: ./coverage.out
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
@@ -45,12 +45,12 @@ jobs:
       run: echo "version=$(grep '^go ' go.mod | cut -d' ' -f2)" >> $GITHUB_OUTPUT
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ steps.go-version.outputs.version }}
 
     - name: Install golangci-lint
-      uses: golangci/golangci-lint-action@v4
+      uses: golangci/golangci-lint-action@v8
       with:
         version: latest
 
@@ -67,7 +67,7 @@ jobs:
       run: echo "version=$(grep '^go ' go.mod | cut -d' ' -f2)" >> $GITHUB_OUTPUT
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ steps.go-version.outputs.version }}
 
@@ -99,7 +99,7 @@ jobs:
       run: echo "version=$(grep '^go ' go.mod | cut -d' ' -f2)" >> $GITHUB_OUTPUT
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ steps.go-version.outputs.version }}
 
@@ -123,7 +123,7 @@ jobs:
       run: echo "version=$(grep '^go ' go.mod | cut -d' ' -f2)" >> $GITHUB_OUTPUT
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ steps.go-version.outputs.version }}
 
