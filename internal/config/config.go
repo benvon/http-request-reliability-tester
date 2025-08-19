@@ -75,7 +75,7 @@ func Load(fs *flag.FlagSet, args []string) (*Config, error) {
 }
 
 // parseFlags parses command line flags using the provided FlagSet
-func parseFlags(cfg *Config, fs *flag.FlagSet, args []string) {
+func parseFlags(cfg *Config, fs *flag.FlagSet, args []string) error {
 	var endpoints string
 	var duration string
 	var outputFormat string
@@ -111,6 +111,8 @@ func parseFlags(cfg *Config, fs *flag.FlagSet, args []string) {
 	if outputFormat != "" {
 		cfg.OutputFormat = OutputFormat(outputFormat)
 	}
+
+	return nil
 }
 
 // applyEnvVars applies environment variables with highest precedence
