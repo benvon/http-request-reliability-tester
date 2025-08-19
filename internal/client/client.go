@@ -3,11 +3,13 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
+	"syscall"
 	"time"
 )
 
@@ -223,26 +225,71 @@ func (c *Client) performPreflight(ctx context.Context, endpoint string) *Request
 	return result
 }
 
-// classifyError classifies the error type based on the error message
+// classifyError determines the category of the provided error using Go's
+// typed errors and error wrapping helpers.
 func (c *Client) classifyError(err error) ErrorType {
-	errStr := err.Error()
-
-	switch {
-	case strings.Contains(errStr, "no such host"):
-		return ErrorTypeDNS
-	case strings.Contains(errStr, "tls"):
-		return ErrorTypeTLS
-	case strings.Contains(errStr, "connection refused") ||
-		strings.Contains(errStr, "network is unreachable"):
-		return ErrorTypeConnection
-	case strings.Contains(errStr, "timeout") ||
-		strings.Contains(errStr, "deadline exceeded"):
-		return ErrorTypeTimeout
-	case strings.Contains(errStr, "http"):
-		return ErrorTypeHTTP
-	default:
+	if err == nil {
 		return ErrorTypeOther
 	}
+
+	// Unwrap *url.Error to inspect the underlying error
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) && urlErr.Err != nil {
+		err = urlErr.Err
+	}
+
+	// DNS resolution failures
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return ErrorTypeDNS
+	}
+
+	// TLS handshake and certificate errors
+	var tlsRecordErr *tls.RecordHeaderError
+	if errors.As(err, &tlsRecordErr) {
+		return ErrorTypeTLS
+	}
+	var tlsCertErr *tls.CertificateVerificationError
+	if errors.As(err, &tlsCertErr) {
+		return ErrorTypeTLS
+	}
+	var unknownAuthErr x509.UnknownAuthorityError
+	if errors.As(err, &unknownAuthErr) {
+		return ErrorTypeTLS
+	}
+	var hostnameErr x509.HostnameError
+	if errors.As(err, &hostnameErr) {
+		return ErrorTypeTLS
+	}
+
+	// Timeout errors
+	if errors.Is(err, context.DeadlineExceeded) {
+		return ErrorTypeTimeout
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return ErrorTypeTimeout
+	}
+
+	// Connection-level errors
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return ErrorTypeConnection
+	}
+	if errors.Is(err, syscall.ECONNREFUSED) ||
+		errors.Is(err, syscall.ENETUNREACH) ||
+		errors.Is(err, syscall.EHOSTUNREACH) ||
+		errors.Is(err, syscall.ECONNRESET) {
+		return ErrorTypeConnection
+	}
+
+	// HTTP protocol errors
+	var protoErr *http.ProtocolError
+	if errors.As(err, &protoErr) {
+		return ErrorTypeHTTP
+	}
+
+	return ErrorTypeOther
 }
 
 // printDebugInfo prints detailed debug information for failed requests

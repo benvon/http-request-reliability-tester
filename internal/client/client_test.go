@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -41,19 +43,34 @@ func TestClassifyError(t *testing.T) {
 			expected: ErrorTypeDNS,
 		},
 		{
-			name:     "TLS error",
+			name:     "URL wrapped DNS error",
+			err:      &url.Error{Op: "Get", URL: "http://example.com", Err: &net.DNSError{Err: "no such host"}},
+			expected: ErrorTypeDNS,
+		},
+		{
+			name:     "TLS certificate error",
 			err:      &tls.CertificateVerificationError{},
 			expected: ErrorTypeTLS,
 		},
 		{
+			name:     "TLS record header error",
+			err:      &tls.RecordHeaderError{Msg: "bad record"},
+			expected: ErrorTypeTLS,
+		},
+		{
 			name:     "Connection refused",
-			err:      &net.OpError{Op: "dial", Err: &net.AddrError{Err: "connection refused"}},
+			err:      &net.OpError{Op: "dial", Err: syscall.ECONNREFUSED},
 			expected: ErrorTypeConnection,
 		},
 		{
 			name:     "Timeout error",
 			err:      context.DeadlineExceeded,
 			expected: ErrorTypeTimeout,
+		},
+		{
+			name:     "HTTP protocol error",
+			err:      &http.ProtocolError{ErrorString: "bad header"},
+			expected: ErrorTypeHTTP,
 		},
 		{
 			name:     "Other error",
