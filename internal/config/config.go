@@ -50,7 +50,7 @@ var defaultEndpoints = []string{
 // 1. Environment variables (highest)
 // 2. Command line flags
 // 3. Configuration file (lowest)
-func Load() (*Config, error) {
+func Load(fs *flag.FlagSet, args []string) (*Config, error) {
 	cfg := &Config{
 		Endpoints:         defaultEndpoints,
 		Duration:          5 * time.Minute,
@@ -64,7 +64,7 @@ func Load() (*Config, error) {
 	}
 
 	// Parse command line flags
-	parseFlags(cfg)
+	parseFlags(cfg, fs, args)
 
 	// Apply environment variables (highest precedence)
 	if err := applyEnvVars(cfg); err != nil {
@@ -74,23 +74,23 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// parseFlags parses command line flags
-func parseFlags(cfg *Config) {
+// parseFlags parses command line flags using the provided FlagSet
+func parseFlags(cfg *Config, fs *flag.FlagSet, args []string) {
 	var endpoints string
 	var duration string
 	var outputFormat string
 
-	flag.StringVar(&endpoints, "endpoints", "", "Comma-separated list of endpoints to test")
-	flag.StringVar(&duration, "duration", "", "Test duration (e.g., '5m', '30s')")
-	flag.IntVar(&cfg.RequestCount, "count", 0, "Total number of requests to send (0 for duration-based)")
-	flag.BoolVar(&cfg.Continuous, "continuous", false, "Run continuously until interrupted")
-	flag.IntVar(&cfg.RequestsPerMinute, "rate", 60, "Requests per minute")
-	flag.BoolVar(&cfg.HighRateMode, "high-rate", false, "Allow rates exceeding 60 requests per minute")
-	flag.StringVar(&outputFormat, "output", "markdown", "Output format: markdown, json, csv")
-	flag.StringVar(&cfg.OutputFile, "output-file", "", "Output file path (default: stdout)")
-	flag.BoolVar(&cfg.Debug, "debug", false, "Enable debug mode for extended error details")
+	fs.StringVar(&endpoints, "endpoints", "", "Comma-separated list of endpoints to test")
+	fs.StringVar(&duration, "duration", "", "Test duration (e.g., '5m', '30s')")
+	fs.IntVar(&cfg.RequestCount, "count", 0, "Total number of requests to send (0 for duration-based)")
+	fs.BoolVar(&cfg.Continuous, "continuous", false, "Run continuously until interrupted")
+	fs.IntVar(&cfg.RequestsPerMinute, "rate", 60, "Requests per minute")
+	fs.BoolVar(&cfg.HighRateMode, "high-rate", false, "Allow rates exceeding 60 requests per minute")
+	fs.StringVar(&outputFormat, "output", "markdown", "Output format: markdown, json, csv")
+	fs.StringVar(&cfg.OutputFile, "output-file", "", "Output file path (default: stdout)")
+	fs.BoolVar(&cfg.Debug, "debug", false, "Enable debug mode for extended error details")
 
-	flag.Parse()
+	_ = fs.Parse(args)
 
 	// Apply flag values
 	if endpoints != "" {

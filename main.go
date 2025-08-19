@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -15,7 +16,7 @@ import (
 
 func main() {
 	// Load configuration with proper precedence
-	cfg, err := config.Load()
+	cfg, err := config.Load(flag.CommandLine, os.Args[1:])
 	if err != nil {
 		log.Fatalf("configuration error: failed to load configuration - %v", err)
 	}
