@@ -37,9 +37,11 @@ type EndpointResult struct {
 	SuccessCount      int
 	AverageDuration   time.Duration
 	LastError         error
-	ConsecutiveErrors int
+	RecentStatusCodes []int
 	Removed           bool
 }
+
+const recentStatusWindow = 3
 
 // Tester represents the HTTP request reliability tester
 type Tester struct {
@@ -179,14 +181,20 @@ func (t *Tester) processResult(result *client.RequestResult) {
 	if endpointResult.TotalRequests > 0 {
 		endpointResult.AverageDuration = (endpointResult.AverageDuration*time.Duration(endpointResult.TotalRequests-1) + result.Duration) / time.Duration(endpointResult.TotalRequests)
 	}
+
+	if result.Error == nil || result.ErrorType == client.ErrorTypeHTTP {
+		endpointResult.RecentStatusCodes = append(endpointResult.RecentStatusCodes, result.StatusCode)
+		if len(endpointResult.RecentStatusCodes) > recentStatusWindow {
+			endpointResult.RecentStatusCodes = endpointResult.RecentStatusCodes[len(endpointResult.RecentStatusCodes)-recentStatusWindow:]
+		}
+	}
+
 	if result.Error != nil {
 		endpointResult.TotalErrors++
 		endpointResult.ErrorBreakdown[result.ErrorType]++
 		endpointResult.LastError = result.Error
-		endpointResult.ConsecutiveErrors++
 	} else {
 		endpointResult.SuccessCount++
-		endpointResult.ConsecutiveErrors = 0
 	}
 }
 
@@ -194,23 +202,17 @@ func (t *Tester) processResult(result *client.RequestResult) {
 func (t *Tester) shouldRemoveEndpoint(endpoint string) bool {
 	endpointResult := t.results.EndpointResults[endpoint]
 
-	// Remove if endpoint has more than 2 consecutive errors with HTTP status >= 400
-	if endpointResult.ConsecutiveErrors > 2 {
-		// Check if the last few errors were HTTP errors (status >= 400)
-		httpErrorCount := 0
-		for errorType, count := range endpointResult.ErrorBreakdown {
-			if errorType == client.ErrorTypeHTTP {
-				httpErrorCount = count
-				break
-			}
-		}
+	if len(endpointResult.RecentStatusCodes) < recentStatusWindow {
+		return false
+	}
 
-		if httpErrorCount >= 2 {
-			return true
+	for _, status := range endpointResult.RecentStatusCodes {
+		if status > 0 && status < 400 {
+			return false
 		}
 	}
 
-	return false
+	return true
 }
 
 // GetResults returns a copy of the current test results
@@ -245,7 +247,7 @@ func (t *Tester) GetResults() *TestResult {
 			SuccessCount:      endpointResult.SuccessCount,
 			AverageDuration:   endpointResult.AverageDuration,
 			LastError:         endpointResult.LastError,
-			ConsecutiveErrors: endpointResult.ConsecutiveErrors,
+			RecentStatusCodes: append([]int(nil), endpointResult.RecentStatusCodes...),
 			Removed:           endpointResult.Removed,
 		}
 

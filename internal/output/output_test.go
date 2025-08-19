@@ -177,7 +177,7 @@ func createTestResults() *tester.TestResult {
 		SuccessCount:      8,
 		AverageDuration:   100 * time.Millisecond,
 		ErrorBreakdown:    make(map[client.ErrorType]int),
-		ConsecutiveErrors: 0,
+		RecentStatusCodes: []int{},
 		Removed:           false,
 	}
 

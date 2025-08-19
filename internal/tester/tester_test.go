@@ -2,6 +2,7 @@ package tester
 
 import (
 	"context"
+	"errors"
 	"net"
 	"testing"
 	"time"
@@ -100,6 +101,10 @@ func TestProcessResult(t *testing.T) {
 	if tester.results.ErrorBreakdown[client.ErrorTypeConnection] != 1 {
 		t.Errorf("Expected 1 connection error, got %d", tester.results.ErrorBreakdown[client.ErrorTypeConnection])
 	}
+
+	if len(endpointResult.RecentStatusCodes) != 1 {
+		t.Errorf("Expected 1 recent status code, got %d", len(endpointResult.RecentStatusCodes))
+	}
 }
 
 func TestShouldRemoveEndpoint(t *testing.T) {
@@ -109,38 +114,107 @@ func TestShouldRemoveEndpoint(t *testing.T) {
 		Duration:          5 * time.Minute,
 	}
 
-	tester := New(cfg)
+	endpoint := "https://example.com"
 
-	// Initialize endpoint result
-	tester.results.EndpointResults["https://example.com"] = &EndpointResult{
-		Endpoint:          "https://example.com",
-		TotalRequests:     5,
-		TotalErrors:       3,
-		ConsecutiveErrors: 3,
-		ErrorBreakdown:    make(map[client.ErrorType]int),
-	}
+	t.Run("removed after three consecutive HTTP errors", func(t *testing.T) {
+		tester := New(cfg)
+		tester.results.EndpointResults[endpoint] = &EndpointResult{
+			Endpoint:       endpoint,
+			ErrorBreakdown: make(map[client.ErrorType]int),
+		}
 
-	// Test with HTTP errors
-	tester.results.EndpointResults["https://example.com"].ErrorBreakdown[client.ErrorTypeHTTP] = 2
+		for i := 0; i < 3; i++ {
+			tester.processResult(&client.RequestResult{
+				Endpoint:   endpoint,
+				StatusCode: 500,
+				Error:      errors.New("server error"),
+				ErrorType:  client.ErrorTypeHTTP,
+			})
+		}
 
-	if !tester.shouldRemoveEndpoint("https://example.com") {
-		t.Error("Expected endpoint to be removed")
-	}
+		if !tester.shouldRemoveEndpoint(endpoint) {
+			t.Error("Expected endpoint to be removed after 3 consecutive HTTP errors")
+		}
+	})
 
-	// Test with non-HTTP errors
-	tester.results.EndpointResults["https://example.com"].ErrorBreakdown[client.ErrorTypeHTTP] = 0
-	tester.results.EndpointResults["https://example.com"].ErrorBreakdown[client.ErrorTypeConnection] = 2
+	t.Run("not removed when success breaks error streak", func(t *testing.T) {
+		tester := New(cfg)
+		tester.results.EndpointResults[endpoint] = &EndpointResult{
+			Endpoint:       endpoint,
+			ErrorBreakdown: make(map[client.ErrorType]int),
+		}
 
-	if tester.shouldRemoveEndpoint("https://example.com") {
-		t.Error("Expected endpoint not to be removed for non-HTTP errors")
-	}
+		tester.processResult(&client.RequestResult{
+			Endpoint:   endpoint,
+			StatusCode: 500,
+			Error:      errors.New("server error"),
+			ErrorType:  client.ErrorTypeHTTP,
+		})
+		tester.processResult(&client.RequestResult{
+			Endpoint:   endpoint,
+			StatusCode: 500,
+			Error:      errors.New("server error"),
+			ErrorType:  client.ErrorTypeHTTP,
+		})
+		tester.processResult(&client.RequestResult{
+			Endpoint:   endpoint,
+			StatusCode: 200,
+			Error:      nil,
+		})
+		tester.processResult(&client.RequestResult{
+			Endpoint:   endpoint,
+			StatusCode: 500,
+			Error:      errors.New("server error"),
+			ErrorType:  client.ErrorTypeHTTP,
+		})
+		tester.processResult(&client.RequestResult{
+			Endpoint:   endpoint,
+			StatusCode: 500,
+			Error:      errors.New("server error"),
+			ErrorType:  client.ErrorTypeHTTP,
+		})
 
-	// Test with fewer consecutive errors
-	tester.results.EndpointResults["https://example.com"].ConsecutiveErrors = 1
+		if tester.shouldRemoveEndpoint(endpoint) {
+			t.Error("Expected endpoint not to be removed when success breaks error streak")
+		}
+	})
 
-	if tester.shouldRemoveEndpoint("https://example.com") {
-		t.Error("Expected endpoint not to be removed with fewer consecutive errors")
-	}
+	t.Run("removed despite non-HTTP error between HTTP errors", func(t *testing.T) {
+		tester := New(cfg)
+		tester.results.EndpointResults[endpoint] = &EndpointResult{
+			Endpoint:       endpoint,
+			ErrorBreakdown: make(map[client.ErrorType]int),
+		}
+
+		tester.processResult(&client.RequestResult{
+			Endpoint:   endpoint,
+			StatusCode: 500,
+			Error:      errors.New("server error"),
+			ErrorType:  client.ErrorTypeHTTP,
+		})
+		tester.processResult(&client.RequestResult{
+			Endpoint:   endpoint,
+			StatusCode: 500,
+			Error:      errors.New("server error"),
+			ErrorType:  client.ErrorTypeHTTP,
+		})
+		tester.processResult(&client.RequestResult{
+			Endpoint:   endpoint,
+			StatusCode: 0,
+			Error:      errors.New("timeout"),
+			ErrorType:  client.ErrorTypeTimeout,
+		})
+		tester.processResult(&client.RequestResult{
+			Endpoint:   endpoint,
+			StatusCode: 500,
+			Error:      errors.New("server error"),
+			ErrorType:  client.ErrorTypeHTTP,
+		})
+
+		if !tester.shouldRemoveEndpoint(endpoint) {
+			t.Error("Expected endpoint to be removed despite non-HTTP error")
+		}
+	})
 }
 
 func TestGetResults(t *testing.T) {
