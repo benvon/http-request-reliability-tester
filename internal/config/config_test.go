@@ -1,6 +1,7 @@
 package config
 
 import (
+	"flag"
 	"os"
 	"testing"
 	"time"
@@ -86,7 +87,8 @@ func TestConfigValidation(t *testing.T) {
 }
 
 func TestDefaultEndpoints(t *testing.T) {
-	config, err := Load()
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	config, err := Load(fs, []string{})
 	if err != nil {
 		t.Fatalf("Failed to load config: %v", err)
 	}
@@ -125,20 +127,23 @@ func TestDefaultEndpoints(t *testing.T) {
 }
 
 func TestEnvironmentVariablePrecedence(t *testing.T) {
-	t.Skip("Skipping due to flag redefinition issues in test environment")
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 
-	// Set environment variable
-	_ = os.Setenv("HTTP_TESTER_ENDPOINTS", "https://test1.com,https://test2.com")
+	// Set flag value
+	args := []string{"--endpoints=https://flag.com"}
+
+	// Set environment variable which should take precedence
+	_ = os.Setenv("HTTP_TESTER_ENDPOINTS", "https://env1.com,https://env2.com")
 	defer func() {
 		_ = os.Unsetenv("HTTP_TESTER_ENDPOINTS")
 	}()
 
-	config, err := Load()
+	config, err := Load(fs, args)
 	if err != nil {
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	expected := []string{"https://test1.com", "https://test2.com"}
+	expected := []string{"https://env1.com", "https://env2.com"}
 	if len(config.Endpoints) != len(expected) {
 		t.Errorf("Expected %d endpoints, got %d", len(expected), len(config.Endpoints))
 	}
