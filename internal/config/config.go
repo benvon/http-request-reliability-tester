@@ -64,7 +64,9 @@ func Load(fs *flag.FlagSet, args []string) (*Config, error) {
 	}
 
 	// Parse command line flags
-	parseFlags(cfg, fs, args)
+	if err := parseFlags(cfg, fs, args); err != nil {
+		return nil, fmt.Errorf("failed to parse flags: %w", err)
+	}
 
 	// Apply environment variables (highest precedence)
 	if err := applyEnvVars(cfg); err != nil {
