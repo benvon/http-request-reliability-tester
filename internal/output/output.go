@@ -60,14 +60,7 @@ func formatMarkdown(results *tester.TestResult) (string, error) {
 	sb.WriteString("## Overall Statistics\n\n")
 	sb.WriteString(fmt.Sprintf("- **Total Requests:** %d\n", results.TotalRequests))
 	sb.WriteString(fmt.Sprintf("- **Total Errors:** %d\n", results.TotalErrors))
-	// Calculate success rate safely
-	var successRate float64
-	if results.TotalRequests > 0 {
-		successRate = float64(results.TotalRequests-results.TotalErrors) / float64(results.TotalRequests) * 100
-	} else {
-		successRate = 0
-	}
-	sb.WriteString(fmt.Sprintf("- **Success Rate:** %.2f%%\n\n", successRate))
+	sb.WriteString(fmt.Sprintf("- **Success Rate:** %.2f%%\n\n", tester.OverallSuccessRate(results)))
 
 	// Error breakdown
 	if results.TotalErrors > 0 {
@@ -88,13 +81,7 @@ func formatMarkdown(results *tester.TestResult) (string, error) {
 	sb.WriteString("|----------|----------|--------|--------------|--------------|--------|\n")
 
 	for _, endpointResult := range results.EndpointResults {
-		// Calculate success rate safely
-		var successRate float64
-		if endpointResult.TotalRequests > 0 {
-			successRate = float64(endpointResult.SuccessCount) / float64(endpointResult.TotalRequests) * 100
-		} else {
-			successRate = 0
-		}
+		successRate := tester.EndpointSuccessRate(endpointResult)
 
 		status := "Active"
 		if endpointResult.Removed {
@@ -140,12 +127,7 @@ func formatJSON(results *tester.TestResult) (string, error) {
 	jsonResult.Summary.TotalRequests = results.TotalRequests
 	jsonResult.Summary.TotalErrors = results.TotalErrors
 
-	// Calculate success rate safely
-	if results.TotalRequests > 0 {
-		jsonResult.Summary.SuccessRate = float64(results.TotalRequests-results.TotalErrors) / float64(results.TotalRequests) * 100
-	} else {
-		jsonResult.Summary.SuccessRate = 0
-	}
+	jsonResult.Summary.SuccessRate = tester.OverallSuccessRate(results)
 
 	jsonResult.Summary.Duration = results.Duration
 	jsonResult.Summary.RequestsPerMinute = results.RequestsPerMinute
@@ -165,13 +147,7 @@ func formatJSON(results *tester.TestResult) (string, error) {
 	})
 
 	for endpoint, result := range results.EndpointResults {
-		// Calculate success rate safely
-		var successRate float64
-		if result.TotalRequests > 0 {
-			successRate = float64(result.SuccessCount) / float64(result.TotalRequests) * 100
-		} else {
-			successRate = 0
-		}
+		successRate := tester.EndpointSuccessRate(result)
 
 		jsonResult.Endpoints[endpoint] = struct {
 			Requests    int           `json:"requests"`
@@ -211,12 +187,7 @@ func formatCSV(results *tester.TestResult) (string, error) {
 	if err := writer.Write([]string{"Total Errors", fmt.Sprintf("%d", results.TotalErrors)}); err != nil {
 		return "", fmt.Errorf("failed to write CSV: %w", err)
 	}
-	var successRate string
-	if results.TotalRequests == 0 {
-		successRate = "0.00%"
-	} else {
-		successRate = fmt.Sprintf("%.2f%%", float64(results.TotalRequests-results.TotalErrors)/float64(results.TotalRequests)*100)
-	}
+	successRate := fmt.Sprintf("%.2f%%", tester.OverallSuccessRate(results))
 	if err := writer.Write([]string{"Success Rate", successRate}); err != nil {
 		return "", fmt.Errorf("failed to write CSV: %w", err)
 	}
@@ -259,13 +230,7 @@ func formatCSV(results *tester.TestResult) (string, error) {
 	}
 
 	for _, endpointResult := range results.EndpointResults {
-		// Calculate success rate safely
-		var successRate float64
-		if endpointResult.TotalRequests > 0 {
-			successRate = float64(endpointResult.SuccessCount) / float64(endpointResult.TotalRequests) * 100
-		} else {
-			successRate = 0
-		}
+		successRate := tester.EndpointSuccessRate(endpointResult)
 
 		status := "Active"
 		if endpointResult.Removed {

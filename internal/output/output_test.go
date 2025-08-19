@@ -1,6 +1,7 @@
 package output
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -38,6 +39,10 @@ func TestFormatMarkdown(t *testing.T) {
 	if !strings.Contains(output, "https://example.com") {
 		t.Error("Expected endpoint in output")
 	}
+	expected := fmt.Sprintf("%.2f%%", tester.OverallSuccessRate(results))
+	if strings.Count(output, expected) < 2 {
+		t.Errorf("Expected success rate %s to appear twice", expected)
+	}
 }
 
 func TestFormatJSON(t *testing.T) {
@@ -63,6 +68,10 @@ func TestFormatJSON(t *testing.T) {
 	if !strings.Contains(output, `"https://example.com"`) {
 		t.Error("Expected endpoint in JSON output")
 	}
+	expected := fmt.Sprintf("\"success_rate\": %.0f", tester.OverallSuccessRate(results))
+	if strings.Count(output, expected) < 2 {
+		t.Errorf("Expected success rate %s to appear twice in JSON output", expected)
+	}
 }
 
 func TestFormatCSV(t *testing.T) {
@@ -87,6 +96,10 @@ func TestFormatCSV(t *testing.T) {
 
 	if !strings.Contains(output, "https://example.com") {
 		t.Error("Expected endpoint in CSV output")
+	}
+	expected := fmt.Sprintf("%.2f%%", tester.OverallSuccessRate(results))
+	if strings.Count(output, expected) < 2 {
+		t.Errorf("Expected success rate %s to appear twice in CSV output", expected)
 	}
 }
 
