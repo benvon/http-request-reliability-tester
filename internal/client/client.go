@@ -254,11 +254,11 @@ func (c *Client) classifyError(err error) ErrorType {
 	if errors.As(err, &tlsCertErr) {
 		return ErrorTypeTLS
 	}
-	var unknownAuthErr x509.UnknownAuthorityError
+	var unknownAuthErr *x509.UnknownAuthorityError
 	if errors.As(err, &unknownAuthErr) {
 		return ErrorTypeTLS
 	}
-	var hostnameErr x509.HostnameError
+	var hostnameErr *x509.HostnameError
 	if errors.As(err, &hostnameErr) {
 		return ErrorTypeTLS
 	}
