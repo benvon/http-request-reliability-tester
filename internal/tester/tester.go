@@ -182,13 +182,11 @@ func (t *Tester) processResult(result *client.RequestResult) {
 		endpointResult.AverageDuration = (endpointResult.AverageDuration*time.Duration(endpointResult.TotalRequests-1) + result.Duration) / time.Duration(endpointResult.TotalRequests)
 	}
 
-	statusCode := result.StatusCode
-	if result.Error != nil && result.ErrorType != client.ErrorTypeHTTP {
-		statusCode = 0
-	}
-	endpointResult.RecentStatusCodes = append(endpointResult.RecentStatusCodes, statusCode)
-	if len(endpointResult.RecentStatusCodes) > recentStatusWindow {
-		endpointResult.RecentStatusCodes = endpointResult.RecentStatusCodes[len(endpointResult.RecentStatusCodes)-recentStatusWindow:]
+	if result.Error == nil || result.ErrorType == client.ErrorTypeHTTP {
+		endpointResult.RecentStatusCodes = append(endpointResult.RecentStatusCodes, result.StatusCode)
+		if len(endpointResult.RecentStatusCodes) > recentStatusWindow {
+			endpointResult.RecentStatusCodes = endpointResult.RecentStatusCodes[len(endpointResult.RecentStatusCodes)-recentStatusWindow:]
+		}
 	}
 
 	if result.Error != nil {
@@ -209,7 +207,7 @@ func (t *Tester) shouldRemoveEndpoint(endpoint string) bool {
 	}
 
 	for _, status := range endpointResult.RecentStatusCodes {
-		if status < 400 {
+		if status > 0 && status < 400 {
 			return false
 		}
 	}

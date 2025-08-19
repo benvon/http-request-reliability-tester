@@ -101,6 +101,10 @@ func TestProcessResult(t *testing.T) {
 	if tester.results.ErrorBreakdown[client.ErrorTypeConnection] != 1 {
 		t.Errorf("Expected 1 connection error, got %d", tester.results.ErrorBreakdown[client.ErrorTypeConnection])
 	}
+
+	if len(endpointResult.RecentStatusCodes) != 1 {
+		t.Errorf("Expected 1 recent status code, got %d", len(endpointResult.RecentStatusCodes))
+	}
 }
 
 func TestShouldRemoveEndpoint(t *testing.T) {
@@ -133,7 +137,7 @@ func TestShouldRemoveEndpoint(t *testing.T) {
 		}
 	})
 
-	t.Run("not removed when errors are not consecutive or not HTTP", func(t *testing.T) {
+	t.Run("not removed when success breaks error streak", func(t *testing.T) {
 		tester := New(cfg)
 		tester.results.EndpointResults[endpoint] = &EndpointResult{
 			Endpoint:       endpoint,
@@ -173,8 +177,10 @@ func TestShouldRemoveEndpoint(t *testing.T) {
 		if tester.shouldRemoveEndpoint(endpoint) {
 			t.Error("Expected endpoint not to be removed when success breaks error streak")
 		}
+	})
 
-		tester = New(cfg)
+	t.Run("removed despite non-HTTP error between HTTP errors", func(t *testing.T) {
+		tester := New(cfg)
 		tester.results.EndpointResults[endpoint] = &EndpointResult{
 			Endpoint:       endpoint,
 			ErrorBreakdown: make(map[client.ErrorType]int),
@@ -204,15 +210,9 @@ func TestShouldRemoveEndpoint(t *testing.T) {
 			Error:      errors.New("server error"),
 			ErrorType:  client.ErrorTypeHTTP,
 		})
-		tester.processResult(&client.RequestResult{
-			Endpoint:   endpoint,
-			StatusCode: 500,
-			Error:      errors.New("server error"),
-			ErrorType:  client.ErrorTypeHTTP,
-		})
 
-		if tester.shouldRemoveEndpoint(endpoint) {
-			t.Error("Expected endpoint not to be removed when non-HTTP error breaks streak")
+		if !tester.shouldRemoveEndpoint(endpoint) {
+			t.Error("Expected endpoint to be removed despite non-HTTP error")
 		}
 	})
 }
