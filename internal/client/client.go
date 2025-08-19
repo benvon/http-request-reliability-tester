@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -283,9 +284,12 @@ func (c *Client) classifyError(err error) ErrorType {
 		return ErrorTypeConnection
 	}
 
-	// HTTP protocol errors
-	var protoErr *http.ProtocolError
-	if errors.As(err, &protoErr) {
+	// HTTP protocol errors - check for common HTTP-related errors
+	// Since http.ProtocolError is deprecated, we check for specific error patterns
+	if err != nil && (strings.Contains(err.Error(), "bad protocol") ||
+		strings.Contains(err.Error(), "malformed") ||
+		strings.Contains(err.Error(), "invalid") ||
+		strings.Contains(err.Error(), "unexpected")) {
 		return ErrorTypeHTTP
 	}
 

@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -69,7 +70,7 @@ func TestClassifyError(t *testing.T) {
 		},
 		{
 			name:     "HTTP protocol error",
-			err:      &http.ProtocolError{ErrorString: "bad header"},
+			err:      fmt.Errorf("bad protocol: malformed header"),
 			expected: ErrorTypeHTTP,
 		},
 		{
