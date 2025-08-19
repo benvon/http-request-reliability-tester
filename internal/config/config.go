@@ -90,7 +90,9 @@ func parseFlags(cfg *Config, fs *flag.FlagSet, args []string) {
 	fs.StringVar(&cfg.OutputFile, "output-file", "", "Output file path (default: stdout)")
 	fs.BoolVar(&cfg.Debug, "debug", false, "Enable debug mode for extended error details")
 
-	_ = fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 
 	// Apply flag values
 	if endpoints != "" {
