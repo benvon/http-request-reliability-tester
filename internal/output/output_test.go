@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -68,8 +69,8 @@ func TestFormatJSON(t *testing.T) {
 	if !strings.Contains(output, `"https://example.com"`) {
 		t.Error("Expected endpoint in JSON output")
 	}
-	expected := fmt.Sprintf("\"success_rate\": %.0f", tester.OverallSuccessRate(results))
-	if strings.Count(output, expected) < 2 {
+	expected := strconv.FormatFloat(tester.OverallSuccessRate(results), 'f', -1, 64)
+	if strings.Count(output, fmt.Sprintf("\"success_rate\": %s", expected)) < 2 {
 		t.Errorf("Expected success rate %s to appear twice in JSON output", expected)
 	}
 }
