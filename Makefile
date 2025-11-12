@@ -1,4 +1,3 @@
-# Makefile for whats-flying-over-me
 # This makefile provides targets that mirror the CI pipeline and help with development
 
 .PHONY: help test lint security vulnerability-check build clean setup deps verify mod-tidy-check all ci-local clean-template
@@ -8,7 +7,7 @@
 # =============================================================================
 
 REQUIRED_GO_VERSION := $(shell awk '/^go[[:space:]]+/ {print $$2; exit}' go.mod)
-BINARY_NAME := whats-flying-over-me
+BINARY_NAME := $(shell git rev-parse --show-toplevel | xargs basename)
 BUILD_DIR := ./bin
 GOVULNCHECK_VERSION ?= 1.1.4
 
