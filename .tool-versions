@@ -1,4 +1,4 @@
-golang 1.25.4
+golang 1.26.2
 gosec 2.22.10
 golangci-lint 2.6.1
 staticcheck 0.6.0
