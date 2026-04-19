@@ -193,7 +193,7 @@ https://httpbin.org,100,0,100.00%,150ms,Active
 
 ### Prerequisites
 
-- Go 1.24 or later
+- Go 1.26 or later
 - Make (optional, for using Makefile)
 
 ### Building
@@ -251,7 +251,28 @@ docker run http-tester --duration 1m --rate 30
 3. Make your changes
 4. Add tests for new functionality
 5. Ensure all tests pass
-6. Submit a pull request
+6. Add exactly one release label to the pull request when the merge should cut a release:
+   - `release:major` for breaking changes
+   - `release:minor` for new backward-compatible functionality
+   - `release:patch` for fixes and other backward-compatible changes
+   - `release:none` to skip releasing on merge
+7. Submit a pull request
+
+## Release Process
+
+Merges to `main` are the release trigger.
+
+- The release workflow finds the merged PR associated with the `main` commit.
+- It reads the PR label as the durable semver signal.
+- It computes the next `v*` tag, creates it if needed, and runs GoReleaser from that merge commit.
+- Re-running the workflow is idempotent: if the commit already has a release tag, the workflow reuses it.
+
+Current release labels:
+
+- `release:major`
+- `release:minor`
+- `release:patch`
+- `release:none`
 
 ## License
 

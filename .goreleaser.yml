@@ -47,6 +47,7 @@ brews:
   - name: http-tester
     homepage: "https://github.com/benvon/http-request-reliability-tester"
     description: "HTTP Request Reliability Tester"
+    skip_upload: true
     repository:
       owner: benvon
       name: homebrew-tap
@@ -70,4 +71,4 @@ dockers:
       - "--platform=linux/arm64"
     extra_files:
       - README.md
-      - LICENSE 
+      - LICENSE
