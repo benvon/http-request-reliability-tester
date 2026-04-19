@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:1.26.2-alpine AS builder
 
 WORKDIR /app
 
@@ -39,4 +39,4 @@ USER appuser
 EXPOSE 8080
 
 # Run the application
-ENTRYPOINT ["./http-tester"] 
+ENTRYPOINT ["./http-tester"]

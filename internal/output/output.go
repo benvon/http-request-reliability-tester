@@ -51,16 +51,16 @@ func formatMarkdown(results *tester.TestResult) (string, error) {
 
 	// Summary section
 	sb.WriteString("# HTTP Request Reliability Test Results\n\n")
-	sb.WriteString(fmt.Sprintf("**Test Duration:** %s\n", results.Duration))
-	sb.WriteString(fmt.Sprintf("**Start Time:** %s\n", results.StartTime.Format(time.RFC3339)))
-	sb.WriteString(fmt.Sprintf("**End Time:** %s\n", results.EndTime.Format(time.RFC3339)))
-	sb.WriteString(fmt.Sprintf("**Requests Per Minute:** %d\n\n", results.RequestsPerMinute))
+	fmt.Fprintf(&sb, "**Test Duration:** %s\n", results.Duration)
+	fmt.Fprintf(&sb, "**Start Time:** %s\n", results.StartTime.Format(time.RFC3339))
+	fmt.Fprintf(&sb, "**End Time:** %s\n", results.EndTime.Format(time.RFC3339))
+	fmt.Fprintf(&sb, "**Requests Per Minute:** %d\n\n", results.RequestsPerMinute)
 
 	// Overall statistics
 	sb.WriteString("## Overall Statistics\n\n")
-	sb.WriteString(fmt.Sprintf("- **Total Requests:** %d\n", results.TotalRequests))
-	sb.WriteString(fmt.Sprintf("- **Total Errors:** %d\n", results.TotalErrors))
-	sb.WriteString(fmt.Sprintf("- **Success Rate:** %.2f%%\n\n", tester.OverallSuccessRate(results)))
+	fmt.Fprintf(&sb, "- **Total Requests:** %d\n", results.TotalRequests)
+	fmt.Fprintf(&sb, "- **Total Errors:** %d\n", results.TotalErrors)
+	fmt.Fprintf(&sb, "- **Success Rate:** %.2f%%\n\n", tester.OverallSuccessRate(results))
 
 	// Error breakdown
 	if results.TotalErrors > 0 {
@@ -70,7 +70,7 @@ func formatMarkdown(results *tester.TestResult) (string, error) {
 
 		for errorType, count := range results.ErrorBreakdown {
 			percentage := float64(count) / float64(results.TotalErrors) * 100
-			sb.WriteString(fmt.Sprintf("| %s | %d | %.2f%% |\n", errorType, count, percentage))
+			fmt.Fprintf(&sb, "| %s | %d | %.2f%% |\n", errorType, count, percentage)
 		}
 		sb.WriteString("\n")
 	}
@@ -88,13 +88,13 @@ func formatMarkdown(results *tester.TestResult) (string, error) {
 			status = "Removed"
 		}
 
-		sb.WriteString(fmt.Sprintf("| %s | %d | %d | %.2f%% | %s | %s |\n",
+		fmt.Fprintf(&sb, "| %s | %d | %d | %.2f%% | %s | %s |\n",
 			endpointResult.Endpoint,
 			endpointResult.TotalRequests,
 			endpointResult.TotalErrors,
 			successRate,
 			endpointResult.AverageDuration,
-			status))
+			status)
 	}
 
 	return sb.String(), nil

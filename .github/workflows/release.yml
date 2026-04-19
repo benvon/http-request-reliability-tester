@@ -2,35 +2,209 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Semver bump to apply when running manually"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 permissions:
   contents: write
+  packages: write
+  pull-requests: read
 
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
+      - name: Fetch tags
+        run: git fetch --force --tags origin
+
+      - name: Resolve release signal
+        id: signal
+        uses: actions/github-script@v8
+        env:
+          DISPATCH_RELEASE_TYPE: ${{ github.event.inputs.release_type || '' }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const labelsToBump = {
+              "release:major": "major",
+              "release:minor": "minor",
+              "release:patch": "patch",
+            };
+            const skipLabels = new Set(["release:none", "release:skip"]);
+            let bump = process.env.DISPATCH_RELEASE_TYPE || "";
+            let source = "";
+
+            if (context.eventName === "push") {
+              const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner,
+                repo,
+                commit_sha: context.sha,
+              });
+
+              const mergedPr = prs.find((pr) => pr.merged_at && pr.base.ref === "main");
+              if (!mergedPr) {
+                core.notice(`No merged pull request is associated with ${context.sha}; skipping release.`);
+                core.setOutput("should_release", "false");
+                return;
+              }
+
+              const labels = mergedPr.labels.map((label) =>
+                typeof label === "string" ? label : label.name,
+              );
+              const matched = labels.filter((name) => Object.prototype.hasOwnProperty.call(labelsToBump, name));
+              const skips = labels.filter((name) => skipLabels.has(name));
+
+              if (matched.length > 1) {
+                core.setFailed(`PR #${mergedPr.number} has multiple release labels: ${matched.join(", ")}`);
+                return;
+              }
+
+              if (skips.length > 0 && matched.length > 0) {
+                core.setFailed(`PR #${mergedPr.number} mixes skip and release labels: ${[...skips, ...matched].join(", ")}`);
+                return;
+              }
+
+              if (skips.length > 0) {
+                core.notice(`PR #${mergedPr.number} has ${skips.join(", ")}; skipping release.`);
+                core.setOutput("should_release", "false");
+                return;
+              }
+
+              if (matched.length === 0) {
+                core.notice(`PR #${mergedPr.number} is missing a release label; skipping release.`);
+                core.setOutput("should_release", "false");
+                return;
+              }
+
+              bump = labelsToBump[matched[0]];
+              source = `PR #${mergedPr.number} label ${matched[0]}`;
+              core.setOutput("pr_number", String(mergedPr.number));
+              core.setOutput("pr_title", mergedPr.title);
+            } else {
+              source = `workflow_dispatch input ${bump}`;
+            }
+
+            core.setOutput("should_release", "true");
+            core.setOutput("bump", bump);
+            core.setOutput("source", source);
+
+      - name: Skip release when no release label is present
+        if: steps.signal.outputs.should_release != 'true'
+        run: |
+          echo "No release label found for this main merge. Skipping release." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Determine release tag
+        if: steps.signal.outputs.should_release == 'true'
+        id: version
+        run: |
+          set -euo pipefail
+
+          existing_tag="$(git tag --points-at "$GITHUB_SHA" 'v*' | sort -V | tail -n1)"
+          if [[ -n "$existing_tag" ]]; then
+            echo "tag=$existing_tag" >> "$GITHUB_OUTPUT"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            echo "Using existing tag $existing_tag for $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          latest_tag="$(git tag --list 'v*' --sort=-version:refname | head -n1)"
+          if [[ -z "$latest_tag" ]]; then
+            latest_tag="v0.0.0"
+          fi
+
+          version="${latest_tag#v}"
+          IFS=. read -r major minor patch <<< "$version"
+
+          case "${{ steps.signal.outputs.bump }}" in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch + 1))
+              ;;
+            *)
+              echo "Unsupported release bump: ${{ steps.signal.outputs.bump }}" >&2
+              exit 1
+              ;;
+          esac
+
+          next_tag="v${major}.${minor}.${patch}"
+          if git rev-parse "$next_tag" >/dev/null 2>&1; then
+            echo "Tag $next_tag already exists" >&2
+            exit 1
+          fi
+
+          echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "Release source: ${{ steps.signal.outputs.source }}"
+            echo "Next tag: $next_tag"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create release tag
+        if: steps.signal.outputs.should_release == 'true' && steps.version.outputs.created == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.version.outputs.tag }}" "$GITHUB_SHA"
+          git push origin "${{ steps.version.outputs.tag }}"
+
       - name: Get Go version from go.mod
+        if: steps.signal.outputs.should_release == 'true'
         id: go-version
-        run: echo "version=$(grep '^go ' go.mod | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+        run: echo "version=$(grep '^go ' go.mod | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Go
+        if: steps.signal.outputs.should_release == 'true'
         uses: actions/setup-go@v6
         with:
           go-version: ${{ steps.go-version.outputs.version }}
 
+      - name: Set up QEMU
+        if: steps.signal.outputs.should_release == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.signal.outputs.should_release == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.signal.outputs.should_release == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+        if: steps.signal.outputs.should_release == 'true'
+        uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
-          version: latest
+          version: "~> v2"
           args: release --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
